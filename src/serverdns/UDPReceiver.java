@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import dns.Query;
+
 /**
  * Cette classe permet la reception d'un paquet UDP sur le port de reception
  * UDP/DNS. Elle analyse le paquet et extrait le hostname
@@ -118,6 +120,14 @@ public class UDPReceiver extends Thread {
 	public void setDNSFile(String filename) {
 		DNSFile = filename;
 	}
+	
+	String toBinary( byte[] bytes )	{
+	    StringBuilder sb = new StringBuilder(bytes.length * Byte.SIZE);
+	    for( int i = 0; i < Byte.SIZE * bytes.length; i++ )
+	        sb.append((bytes[i / Byte.SIZE] << i % Byte.SIZE & 0x80) == 0 ? '0' : '1');
+	    return sb.toString();
+	}
+	
 
 	public void run() {
 		try {
@@ -143,13 +153,23 @@ public class UDPReceiver extends Thread {
 				
 				System.out.println(buff.toString());
 				
+				
+				// Sauvegarde de QR
+				byte[] octet2 = new byte[1];
+				octet2[0] = buff[2];
+				String QR = toBinary(octet2).substring(0, 1);
+				
+				
 				// ****** Dans le cas d'un paquet requete *****
-
-					// *Lecture du Query Domain name, a partir du 13 byte
-
-					// *Sauvegarde du Query Domain name
+				if ( QR.equals("0")) {
+					Query query = new Query(buff);
+					
+					// *Lecture et sauvegarde du Query Domain name, a partir du 13 byte
+					query.setDomainName();
 					
 					// *Sauvegarde de l'adresse, du port et de l'identifiant de la requete
+					query.setSenderIP(paquetRecu.getAddress());
+					query.setSenderPort(paquetRecu.getPort());
 
 					// *Si le mode est redirection seulement
 						// *Rediriger le paquet vers le serveur DNS
@@ -163,8 +183,9 @@ public class UDPReceiver extends Thread {
 							// *Creer le paquet de reponse a l'aide du UDPAnswerPaquetCreator
 							// *Placer ce paquet dans le socket
 							// *Envoyer le paquet
-				
+				}
 				// ****** Dans le cas d'un paquet reponse *****
+				else {
 						// *Lecture du Query Domain name, a partir du 13 byte
 						
 						// *Passe par dessus Type et Class
@@ -183,6 +204,7 @@ public class UDPReceiver extends Thread {
 						// ayant emis une requete avec cet identifiant				
 						// *Placer ce paquet dans le socket
 						// *Envoyer le paquet
+				}
 			}
 //			serveur.close(); //closing server
 		} catch (Exception e) {
