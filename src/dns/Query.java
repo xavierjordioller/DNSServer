@@ -11,6 +11,14 @@ public class Query {
 	int senderPort;
 	
 	
+	public InetAddress getSenderIP() {
+		return senderIP;
+	}
+
+	public int getSenderPort() {
+		return senderPort;
+	}
+
 	public Query(byte[] message) {
 		this.message = message;
 	}
@@ -25,10 +33,6 @@ public class Query {
 
 	public byte[] getDomainName() {
 		return domainName;
-	}
-
-	public void setDomainName(byte[] domainName) {
-		this.domainName = domainName;
 	}
 
 	public byte[] getQName() {

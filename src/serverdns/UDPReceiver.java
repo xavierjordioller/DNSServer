@@ -5,10 +5,13 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import dns.Domains;
 import dns.Query;
 
 /**
@@ -172,17 +175,41 @@ public class UDPReceiver extends Thread {
 					query.setSenderPort(paquetRecu.getPort());
 
 					// *Si le mode est redirection seulement
+					if(this.RedirectionSeulement) {
 						// *Rediriger le paquet vers le serveur DNS
+						UDPSender UDPS = new UDPSender(this.SERVER_DNS,this.portRedirect,serveur);		
+						UDPS.SendPacketNow(paquetRecu);
+						/* STOCKAGE DU CLIENT???? */
+					}
+					else {
 					// *Sinon
+						Domains domains = new Domains(Paths.get(this.DNSFile));
 						// *Rechercher l'adresse IP associe au Query Domain name
-						// dans le fichier de correspondance de ce serveur					
+						// dans le fichier de correspondance de ce serveur
+						List<String> listIP = domains.searchIP(new String(query.getDomainName()));
+					
 
 						// *Si la correspondance n'est pas trouvee
+						if (listIP.isEmpty()) {
 							// *Rediriger le paquet vers le serveur DNS
+							UDPSender UDPS = new UDPSender(this.SERVER_DNS,this.portRedirect,serveur);
+							UDPS.SendPacketNow(paquetRecu);
+							// STOCKAGE DU CLIENT?????
+						}
 						// *Sinon	
+						else {
 							// *Creer le paquet de reponse a l'aide du UDPAnswerPaquetCreator
+							UDPAnswerPacketCreator answerPacketCreator = UDPAnswerPacketCreator.getInstance();
+							
 							// *Placer ce paquet dans le socket
+							byte[] awnserBytes  = answerPacketCreator.CreateAnswerPacket(buff,listIP);
+							DatagramPacket replyPacket = new DatagramPacket(awnserBytes,awnserBytes.length);
+							
 							// *Envoyer le paquet
+							UDPSender UDPS = new UDPSender(query.getSenderIP(), query.getSenderPort(),serveur);
+							UDPS.SendPacketNow(replyPacket);
+						}
+					}
 				}
 				// ****** Dans le cas d'un paquet reponse *****
 				else {
