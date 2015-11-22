@@ -5,14 +5,16 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import dns.Domains;
 import dns.Query;
+import dns.Reply;
 
 /**
  * Cette classe permet la reception d'un paquet UDP sur le port de reception
@@ -73,10 +75,10 @@ public class UDPReceiver extends Thread {
 	private boolean RedirectionSeulement = false;
 	
 	private class ClientInfo { //quick container
-		public String client_ip = null;
+		public InetAddress client_ip = null;
 		public int client_port = 0;
 	};
-	private HashMap<Integer, ClientInfo> Clients = new HashMap<>();
+	private HashMap<byte[], ClientInfo> Clients = new HashMap<>();
 	
 	private boolean stop = false;
 
@@ -135,7 +137,9 @@ public class UDPReceiver extends Thread {
 	public void run() {
 		try {
 			DatagramSocket serveur = new DatagramSocket(this.port); // *Creation d'un socket UDP
-		
+			
+			AnswerRecorder answerRecorder = new AnswerRecorder(DNSFile);
+			QueryFinder queryFinder = new QueryFinder(this.DNSFile);
 			
 			// *Boucle infinie de recpetion
 			while (!this.stop) {
@@ -173,28 +177,45 @@ public class UDPReceiver extends Thread {
 					// *Sauvegarde de l'adresse, du port et de l'identifiant de la requete
 					query.setSenderIP(paquetRecu.getAddress());
 					query.setSenderPort(paquetRecu.getPort());
+					query.setQueryId();
 
 					// *Si le mode est redirection seulement
 					if(this.RedirectionSeulement) {
 						// *Rediriger le paquet vers le serveur DNS
 						UDPSender UDPS = new UDPSender(this.SERVER_DNS,this.portRedirect,serveur);		
 						UDPS.SendPacketNow(paquetRecu);
-						/* STOCKAGE DU CLIENT???? */
+						
+						/* STOCKAGE DU CLIENT */
+						ClientInfo client = new ClientInfo();
+						client.client_ip = query.getSenderIP();
+						client.client_port = query.getSenderPort();
+						
+//						ByteBuffer wrapped = ByteBuffer.wrap(query.getQueryId());
+//						Clients.put((int) wrapped.getShort(), client);
+						Clients.put(query.getQueryId(), client);
+						
 					}
 					else {
-					// *Sinon
-						Domains domains = new Domains(Paths.get(this.DNSFile));
 						// *Rechercher l'adresse IP associe au Query Domain name
 						// dans le fichier de correspondance de ce serveur
-						List<String> listIP = domains.searchIP(new String(query.getDomainName()));
+
 					
+						List<String> listIP = queryFinder.StartResearch(query.getDomainToSearch());
 
 						// *Si la correspondance n'est pas trouvee
 						if (listIP.isEmpty()) {
 							// *Rediriger le paquet vers le serveur DNS
 							UDPSender UDPS = new UDPSender(this.SERVER_DNS,this.portRedirect,serveur);
 							UDPS.SendPacketNow(paquetRecu);
-							// STOCKAGE DU CLIENT?????
+							
+							// STOCKAGE DU CLIENT
+							ClientInfo client = new ClientInfo();
+							client.client_ip = query.getSenderIP();
+							client.client_port = query.getSenderPort();
+							
+							//ByteBuffer wrapped = ByteBuffer.wrap(query.getQueryId());
+							//Clients.put((int) wrapped.getShort(), client);
+							Clients.put(query.getQueryId(), client);
 						}
 						// *Sinon	
 						else {
@@ -202,8 +223,8 @@ public class UDPReceiver extends Thread {
 							UDPAnswerPacketCreator answerPacketCreator = UDPAnswerPacketCreator.getInstance();
 							
 							// *Placer ce paquet dans le socket
-							byte[] awnserBytes  = answerPacketCreator.CreateAnswerPacket(buff,listIP);
-							DatagramPacket replyPacket = new DatagramPacket(awnserBytes,awnserBytes.length);
+							byte[] answerBytes  = answerPacketCreator.CreateAnswerPacket(buff,listIP);
+							DatagramPacket replyPacket = new DatagramPacket(answerBytes,answerBytes.length);
 							
 							// *Envoyer le paquet
 							UDPSender UDPS = new UDPSender(query.getSenderIP(), query.getSenderPort(),serveur);
@@ -211,26 +232,66 @@ public class UDPReceiver extends Thread {
 						}
 					}
 				}
+				
+				
 				// ****** Dans le cas d'un paquet reponse *****
-				else {
-						// *Lecture du Query Domain name, a partir du 13 byte
-						
-						// *Passe par dessus Type et Class
-						
-						// *Passe par dessus les premiers champs du ressource record
-						// pour arriver au ressource data qui contient l'adresse IP associe
-						//  au hostname (dans le fond saut de 16 bytes)
-						
-						// *Capture de ou des adresse(s) IP (ANCOUNT est le nombre
-						// de r�ponses retourn�es)			
+				
+				else { // !QR.equals("0")
 					
-						// *Ajouter la ou les correspondance(s) dans le fichier DNS
-						// si elles ne y sont pas deja
-						
-						// *Faire parvenir le paquet reponse au demandeur original,
-						// ayant emis une requete avec cet identifiant				
-						// *Placer ce paquet dans le socket
-						// *Envoyer le paquet
+					Reply reply = new Reply(buff);
+					// Lecture de l'identifiant
+					reply.setQueryId();
+					
+					ClientInfo client = Clients.get(reply.getQueryId());
+					if (client.client_ip == null || client.client_port == 0) {
+						System.out.println("Ce paquet et pas pour moi");
+						continue;
+					}
+					
+					// Lecture de ANCOUNT
+					reply.setAncount();
+					
+					
+					// *Lecture du Query Domain name, a partir du 13 byte
+					reply.setDomainName();
+
+					
+					// *Passe par dessus Type et Class
+					
+				
+					// *Passe par dessus les premiers champs du ressource record
+					// pour arriver au ressource data qui contient l'adresse IP associe
+					//  au hostname (dans le fond saut de 16 bytes)
+					reply.setListIp();
+				
+				
+					// *Capture de ou des adresse(s) IP (ANCOUNT est le nombre
+					// de reponses retournees)			
+				
+				
+					// *Ajouter la ou les correspondance(s) dans le fichier DNS
+					// si elles ne y sont pas deja
+					List<String> savedIp =  queryFinder.StartResearch(reply.getDomainToSearch());
+					
+					for (int i = 0; i < reply.getListIp().size(); i++) {
+						if (!savedIp.contains(reply.getListIp().get(i))) {
+							answerRecorder.StartRecord(reply.getDomainToSearch(), reply.getListIp().get(i));
+						}
+					}
+					
+					
+				
+					// *Faire parvenir le paquet reponse au demandeur original,
+					// ayant emis une requete avec cet identifiant
+					UDPAnswerPacketCreator answerPacketCreator = UDPAnswerPacketCreator.getInstance();
+
+					// *Placer ce paquet dans le socket
+					byte[] answerBytes = answerPacketCreator.CreateAnswerPacket(buff, reply.getListIp());
+					DatagramPacket replyPacket = new DatagramPacket(answerBytes,answerBytes.length);
+					
+					// *Envoyer le paquet
+					UDPSender UDPS = new UDPSender(client.client_ip,client.client_port,serveur);
+					UDPS.SendPacketNow(replyPacket);
 				}
 			}
 //			serveur.close(); //closing server

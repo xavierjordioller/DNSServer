@@ -6,9 +6,16 @@ public class Query {
 	byte[] message;
 	byte[] domainName;
 	byte[] QName;
+	byte[] queryId;
+	String domainToSearch;
 	
 	InetAddress senderIP;
 	int senderPort;
+	
+	public Query(byte[] message) {
+		this.message = message;
+		this.queryId = new byte[2];
+	}
 	
 	
 	public InetAddress getSenderIP() {
@@ -17,10 +24,6 @@ public class Query {
 
 	public int getSenderPort() {
 		return senderPort;
-	}
-
-	public Query(byte[] message) {
-		this.message = message;
 	}
 
 	public byte[] getMessage() {
@@ -43,6 +46,37 @@ public class Query {
 		QName = qName;
 	}
 
+	public void setDomainName() {
+		int j = 0;
+		int QNameLen = 0;
+		while(message[12 + j] != 0x00) {
+			QNameLen++;
+			j++;
+		}
+		QNameLen++;
+		
+		QName = new byte[QNameLen];
+		domainName = new byte[QNameLen];
+		j = 0;
+		QName[j] = message[12+j];
+		domainName[j] = 0x00;
+		while(message[12 + j] != 0x00) {
+			int i = 1;
+			for(; i <= (int) message[12+j]; i++) {
+				QName[j+i] = message[12+j+i];
+				domainName[j + i] = message[12+j+i];  
+			}
+			j = j + i;
+			QName[j] = message[12+j];
+			domainName[j] = 0x2E; //point
+		}
+		domainName[j] = 0x00;
+		
+		domainToSearch = new String(domainName);
+		domainToSearch = domainToSearch.substring(1,domainToSearch.length()-1);
+	}
+	
+	/*
 	public void setDomainName() {
 		// On trouve la taille de domainName et du QName complet
 		int domainNameLen = 0;
@@ -86,7 +120,32 @@ public class Query {
 			QName[i] = message[12 + i];
 		}
 		
+	}*/
+
+	public byte[] getQueryId() {
+		return queryId;
 	}
+
+
+	public void setQueryId(byte[] queryId) {
+		this.queryId = queryId;
+	}
+
+
+	public String getDomainToSearch() {
+		return domainToSearch;
+	}
+
+
+	public void setDomainToSearch(String domainToSearch) {
+		this.domainToSearch = domainToSearch;
+	}
+
+
+	public void setDomainName(byte[] domainName) {
+		this.domainName = domainName;
+	}
+
 
 	public void setSenderIP(InetAddress senderIP) {
 		this.senderIP = senderIP;
@@ -94,6 +153,11 @@ public class Query {
 
 	public void setSenderPort(int senderPort ) {
 		this.senderPort = senderPort;
+	}
+
+	public void setQueryId() {
+		this.queryId[0] = this.message[0];
+		this.queryId[1] = this.message[1];
 	}
 	
 	
