@@ -1,3 +1,15 @@
 -- DNS FILE --
 etsmtl.ca 142.137.250.117
 etsmtl.ca 142.137.250.114
+google.ca -50.126.112.-79
+google.ca -50.126.112.-75
+google.ca -50.126.112.-71
+google.ca -50.126.112.-69
+google.ca -50.126.112.-113
+google.ca -50.126.112.-109
+google.ca -50.126.112.-105
+google.ca -50.126.112.-101
+google.ca -50.126.112.-99
+google.ca -50.126.112.-98
+www.facebook.com 0.0.0.0
+www.facebook.com 31.13.76.68

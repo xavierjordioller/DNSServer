@@ -83,20 +83,29 @@ public class Reply {
 	public ArrayList<String> getListIp() {
 		return listIp;
 	}
+	
+	public int byteToShort(byte[] bytes) {
+		ByteBuffer wrapped = ByteBuffer.wrap(bytes);		
+		return (int) wrapped.getShort();
+	}
 
 	public void setListIp() {
 		listIp = new ArrayList<String>();
 		
-		int offset = 12 + QName.length + 14;
+		int offset = 12 + QName.length + 4;
+		//int offset = 12 + QName.length + 14;
 		for (int i = 0; i < anCount; i++){
+			offset = offset + 10;
 			int RDLen;
 			byte[] RDLenB = new byte[2];
 			RDLenB[0] = message[offset];
-			RDLenB[0] = message[offset+1];
+			RDLenB[1] = message[offset+1];
+			
+			RDLen = byteToShort(RDLenB);
+
 			offset = offset + 2;
 			
-			ByteBuffer wrapped = ByteBuffer.wrap(RDLenB);
-			RDLen = wrapped.getShort();
+
 			
 			byte[] ip = new byte[4];
 			if (RDLen == 4) {
@@ -216,6 +225,10 @@ public class Reply {
 		
 		ByteBuffer wrapped = ByteBuffer.wrap(anCountB);
 		this.anCount = wrapped.getShort();
+		
+		if (this.anCount > 10) {
+			this.anCount = 10;
+		}
 	}
 
 }

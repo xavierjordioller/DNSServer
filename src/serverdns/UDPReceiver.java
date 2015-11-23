@@ -251,10 +251,13 @@ public class UDPReceiver extends Thread {
 					
 					// Lecture de ANCOUNT
 					reply.setAncount();
+					if (reply.getAnCount() == 0) {
+						continue;
+					} 
 					
 					
 					// *Lecture du Query Domain name, a partir du 13 byte
-					reply.setDomainName();
+					reply.setDomainName(); 
 
 					
 					// *Passe par dessus Type et Class
