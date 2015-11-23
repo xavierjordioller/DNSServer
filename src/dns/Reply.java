@@ -17,6 +17,8 @@ public class Reply {
 	private short anCount;
 	
 	private ArrayList<String> listIp;
+	private short queryIdSh;
+	private Integer queryIdInt;
 	
 	public byte[] getMessage() {
 		return message;
@@ -42,8 +44,8 @@ public class Reply {
 		QName = qName;
 	}
 
-	public byte[] getQueryId() {
-		return queryId;
+	public Integer getQueryId() {
+		return queryIdInt;
 	}
 
 	public void setQueryId(byte[] queryId) {
@@ -199,8 +201,12 @@ public class Reply {
 */
 	
 	public void setQueryId() {
+		queryId = new byte[2];
 		this.queryId[0] = this.message[0];
 		this.queryId[1] = this.message[1];
+		ByteBuffer wrapped = ByteBuffer.wrap(this.queryId); // big-endian by default
+		this.queryIdSh = wrapped.getShort();
+		this.queryIdInt = Integer.valueOf(this.queryIdSh);
 	}
 
 	public void setAncount() {

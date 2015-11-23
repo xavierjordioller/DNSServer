@@ -1,6 +1,7 @@
 package dns;
 
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
 
 public class Query {
 	byte[] message;
@@ -11,6 +12,8 @@ public class Query {
 	
 	InetAddress senderIP;
 	int senderPort;
+	private short queryIdSh;
+	private Integer queryIdInt;
 	
 	public Query(byte[] message) {
 		this.message = message;
@@ -122,8 +125,8 @@ public class Query {
 		
 	}*/
 
-	public byte[] getQueryId() {
-		return queryId;
+	public Integer getQueryId() {
+		return queryIdInt;
 	}
 
 
@@ -158,6 +161,9 @@ public class Query {
 	public void setQueryId() {
 		this.queryId[0] = this.message[0];
 		this.queryId[1] = this.message[1];
+		ByteBuffer wrapped = ByteBuffer.wrap(this.queryId); // big-endian by default
+		this.queryIdSh = wrapped.getShort();
+		this.queryIdInt = Integer.valueOf(this.queryIdSh);
 	}
 	
 	

@@ -78,7 +78,7 @@ public class UDPReceiver extends Thread {
 		public InetAddress client_ip = null;
 		public int client_port = 0;
 	};
-	private HashMap<byte[], ClientInfo> Clients = new HashMap<>();
+	private HashMap<Integer, ClientInfo> Clients = new HashMap<>();
 	
 	private boolean stop = false;
 
@@ -243,7 +243,8 @@ public class UDPReceiver extends Thread {
 					reply.setQueryId();
 					
 					ClientInfo client = Clients.get(reply.getQueryId());
-					if (client.client_ip == null || client.client_port == 0) {
+					if (client == null) {
+					//if (client.client_ip == null || client.client_port == 0) {
 						System.out.println("Ce paquet et pas pour moi");
 						continue;
 					}
